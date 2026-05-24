@@ -1,5 +1,5 @@
 name = "your-worker-name" # 替换为你在 Cloudflare 上的 Worker 名称
-main = "index.js" # 替换为你的 JS 文件名，例如 worker.js 或 src/index.js
+main = "worker.js" # 替换为你的 JS 文件名，例如 worker.js 或 src/index.js
 
 # 如果你使用的是 Workers Unbound (旧版) 或需要指定环境
 compatibility_date = "2026-05-24"
