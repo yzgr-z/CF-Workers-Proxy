@@ -3,9 +3,9 @@ function logError(request, message) {
     `${message}, clientIp: ${request.headers.get(
       "cf-connecting-ip"
     )}, user-agent: ${request.headers.get("user-agent")}, url: ${request.url}`
+  );
 }
-console.log("👉 收到请求:", request.url);
-console.log("🔍 PROXY_HOSTNAME 的值是:", env.PROXY_HOSTNAME);
+
 function createNewRequest(request, url, proxyHostname, originHostname) {
   const newRequestHeaders = new Headers(request.headers);
   for (const [key, value] of newRequestHeaders) {
@@ -109,7 +109,8 @@ Commercial support is available at
 export default {
   async fetch(request, env, ctx) {
     console.log("👉 收到请求:", request.url);
-console.log("🔍 PROXY_HOSTNAME 的值是:", env.PROXY_HOSTNAME);
+    console.log("🔍 PROXY_HOSTNAME 的值是:", env.PROXY_HOSTNAME);
+    
     try {
       const {
         PROXY_HOSTNAME,
@@ -125,42 +126,59 @@ console.log("🔍 PROXY_HOSTNAME 的值是:", env.PROXY_HOSTNAME);
         KEEP_PATH = false,
         DEBUG = false,
       } = env;
+      
       const url = new URL(request.url);
       const originHostname = url.hostname;
+      
+      // 核心拦截逻辑
       if (
         !PROXY_HOSTNAME ||
         (PATHNAME_REGEX && !new RegExp(PATHNAME_REGEX).test(url.pathname)) ||
+        
+        // 修复点：这里建议加上 || "" 防止 null 报错，或者确保环境变量配置正确
         (UA_WHITELIST_REGEX &&
+          request.headers.get("User-Agent") && 
           !new RegExp(UA_WHITELIST_REGEX).test(
-            request.headers.get("user-agent").toLowerCase()
+            request.headers.get("User-Agent").toLowerCase()
           )) ||
+          
         (UA_BLACKLIST_REGEX &&
+          request.headers.get("User-Agent") && 
           new RegExp(UA_BLACKLIST_REGEX).test(
-            request.headers.get("user-agent").toLowerCase()
+            request.headers.get("User-Agent").toLowerCase()
           )) ||
+          
         (IP_WHITELIST_REGEX &&
+          request.headers.get("cf-connecting-ip") && 
           !new RegExp(IP_WHITELIST_REGEX).test(
             request.headers.get("cf-connecting-ip")
           )) ||
+          
         (IP_BLACKLIST_REGEX &&
+          request.headers.get("cf-connecting-ip") && 
           new RegExp(IP_BLACKLIST_REGEX).test(
             request.headers.get("cf-connecting-ip")
           )) ||
+          
         (REGION_WHITELIST_REGEX &&
+          request.headers.get("cf-ipcountry") && 
           !new RegExp(REGION_WHITELIST_REGEX).test(
             request.headers.get("cf-ipcountry")
           )) ||
+          
         (REGION_BLACKLIST_REGEX &&
+          request.headers.get("cf-ipcountry") && 
           new RegExp(REGION_BLACKLIST_REGEX).test(
             request.headers.get("cf-ipcountry")
           ))
       ) {
         logError(request, "Invalid");
         return URL302
-          ? Response.redirect(KEEP_PATH
-            ? (URL302 + "/" + url.pathname).replace(/\/+/g, '/')
-            : URL302,
-             302
+          ? Response.redirect(
+              KEEP_PATH
+                ? (URL302 + "/" + url.pathname).replace(/\/+/g, '/')
+                : URL302,
+              302
             )
           : new Response(await nginx(), {
               headers: {
@@ -168,14 +186,18 @@ console.log("🔍 PROXY_HOSTNAME 的值是:", env.PROXY_HOSTNAME);
               },
             });
       }
+      
+      // 转发请求
       url.host = PROXY_HOSTNAME;
       url.protocol = PROXY_PROTOCOL;
+      
       const newRequest = createNewRequest(
         request,
         url,
         PROXY_HOSTNAME,
         originHostname
       );
+      
       const originalResponse = await fetch(newRequest);
       const newResponseHeaders = setResponseHeaders(
         originalResponse,
@@ -183,8 +205,10 @@ console.log("🔍 PROXY_HOSTNAME 的值是:", env.PROXY_HOSTNAME);
         originHostname,
         DEBUG
       );
+      
       const contentType = newResponseHeaders.get("content-type") || "";
       let body;
+      
       if (contentType.includes("text/")) {
         body = await replaceResponseText(
           originalResponse,
@@ -195,10 +219,12 @@ console.log("🔍 PROXY_HOSTNAME 的值是:", env.PROXY_HOSTNAME);
       } else {
         body = originalResponse.body;
       }
+      
       return new Response(body, {
         status: originalResponse.status,
         headers: newResponseHeaders,
       });
+      
     } catch (error) {
       logError(request, `Fetch error: ${error.message}`);
       return new Response("Internal Server Error", { status: 500 });
