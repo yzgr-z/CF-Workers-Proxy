@@ -51,14 +51,6 @@ function setResponseHeaders(
   return newResponseHeaders;
 }
 
-/**
- * 替换内容
- * @param originalResponse 响应
- * @param proxyHostname 代理地址 hostname
- * @param pathnameRegex 代理地址路径匹配的正则表达式
- * @param originHostname 替换的字符串
- * @returns {Promise<*>}
- */
 async function replaceResponseText(
   originalResponse,
   proxyHostname,
@@ -108,6 +100,7 @@ Commercial support is available at
 
 export default {
   async fetch(request, env, ctx) {
+    // 调试日志
     console.log("👉 收到请求:", request.url);
     console.log("🔍 PROXY_HOSTNAME 的值是:", env.PROXY_HOSTNAME);
     
@@ -130,46 +123,39 @@ export default {
       const url = new URL(request.url);
       const originHostname = url.hostname;
       
-      // 核心拦截逻辑
+      // 核心拦截逻辑（已修复 null 报错问题）
       if (
         !PROXY_HOSTNAME ||
         (PATHNAME_REGEX && !new RegExp(PATHNAME_REGEX).test(url.pathname)) ||
         
-        // 修复点：这里建议加上 || "" 防止 null 报错，或者确保环境变量配置正确
         (UA_WHITELIST_REGEX &&
-          request.headers.get("User-Agent") && 
           !new RegExp(UA_WHITELIST_REGEX).test(
-            request.headers.get("User-Agent").toLowerCase()
+            (request.headers.get("user-agent") || "").toLowerCase()
           )) ||
           
         (UA_BLACKLIST_REGEX &&
-          request.headers.get("User-Agent") && 
           new RegExp(UA_BLACKLIST_REGEX).test(
-            request.headers.get("User-Agent").toLowerCase()
+            (request.headers.get("user-agent") || "").toLowerCase()
           )) ||
           
         (IP_WHITELIST_REGEX &&
-          request.headers.get("cf-connecting-ip") && 
           !new RegExp(IP_WHITELIST_REGEX).test(
-            request.headers.get("cf-connecting-ip")
+            (request.headers.get("cf-connecting-ip") || "")
           )) ||
           
         (IP_BLACKLIST_REGEX &&
-          request.headers.get("cf-connecting-ip") && 
           new RegExp(IP_BLACKLIST_REGEX).test(
-            request.headers.get("cf-connecting-ip")
+            (request.headers.get("cf-connecting-ip") || "")
           )) ||
           
         (REGION_WHITELIST_REGEX &&
-          request.headers.get("cf-ipcountry") && 
           !new RegExp(REGION_WHITELIST_REGEX).test(
-            request.headers.get("cf-ipcountry")
+            (request.headers.get("cf-ipcountry") || "")
           )) ||
           
         (REGION_BLACKLIST_REGEX &&
-          request.headers.get("cf-ipcountry") && 
           new RegExp(REGION_BLACKLIST_REGEX).test(
-            request.headers.get("cf-ipcountry")
+            (request.headers.get("cf-ipcountry") || "")
           ))
       ) {
         logError(request, "Invalid");
