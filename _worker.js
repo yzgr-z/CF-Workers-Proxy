@@ -3,9 +3,9 @@ function logError(request, message) {
     `${message}, clientIp: ${request.headers.get(
       "cf-connecting-ip"
     )}, user-agent: ${request.headers.get("user-agent")}, url: ${request.url}`
-  );
 }
-
+console.log("👉 收到请求:", request.url);
+console.log("🔍 PROXY_HOSTNAME 的值是:", env.PROXY_HOSTNAME);
 function createNewRequest(request, url, proxyHostname, originHostname) {
   const newRequestHeaders = new Headers(request.headers);
   for (const [key, value] of newRequestHeaders) {
@@ -108,6 +108,8 @@ Commercial support is available at
 
 export default {
   async fetch(request, env, ctx) {
+    console.log("👉 收到请求:", request.url);
+console.log("🔍 PROXY_HOSTNAME 的值是:", env.PROXY_HOSTNAME);
     try {
       const {
         PROXY_HOSTNAME,
